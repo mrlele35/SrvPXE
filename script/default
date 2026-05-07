@@ -1,0 +1,37 @@
+proxy_cache_path /var/cache/nginx/iso_cache levels=1:2 keys_zone=iso_cache:10m max_size=50g inactive=365d use_temp_path=off;
+
+server {
+    listen 80;
+    server_name _;
+    client_max_body_size 5G;
+    root /var/www/html;
+    index index.html menu.ipxe;
+
+    # -------------------------------------------------------------
+    # LE PROXY DYNAMIQUE 
+    # -------------------------------------------------------------
+    location ~ ^/proxy/(.*)$ {
+  
+        resolver 192.168.2.101 valid=300s ipv6=off;
+
+        set $target_url $1;
+
+       
+        proxy_cache iso_cache;
+        proxy_cache_valid 200 365d; # On garde 1 an
+        proxy_cache_key $target_url; 
+        
+        proxy_cache_lock on; 
+
+        proxy_pass http://$target_url;
+    }
+    location /ipxe_scripts/{
+        alias/var/www/html/ipxe_scripts/;
+        autoindex on;
+    }
+
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/var/run/php/php8.4-fpm.sock; 
+    }
+}
